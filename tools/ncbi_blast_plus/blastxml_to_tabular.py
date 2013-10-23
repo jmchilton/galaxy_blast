@@ -8,7 +8,7 @@ extended 24 columns offered in the BLAST+ wrappers).
 The 12 columns output are 'qseqid sseqid pident length mismatch gapopen qstart
 qend sstart send evalue bitscore' or 'std' at the BLAST+ command line, which
 mean:
-   
+
 ====== ========= ============================================
 Column NCBI name Description
 ------ --------- --------------------------------------------
@@ -61,6 +61,7 @@ space character (probably a bug).
 """
 import sys
 import re
+from optparse import OptionParser
 
 if "-v" in sys.argv or "--version" in sys.argv:
     print "v0.0.12"
@@ -80,35 +81,42 @@ def stop_err( msg ):
     sys.stderr.write("%s\n" % msg)
     sys.exit(1)
 
-#Parse Command Line
-try:
-    in_file, out_file, out_fmt = sys.argv[1:]
-except:
-    stop_err("Expect 3 arguments: input BLAST XML file, output tabular file, out format (std or ext)")
+usage = "usage: %prog [options] blastxml[,...]"
+parser = OptionParser(usage=usage)
+parser.add_option('-o', '--output', dest='output', default=None, help='output file path', metavar="FILE")
+parser.add_option("-c", "--columns", dest="columns", default='std', help="[std|ext|colname[,colname,...]] std: 12 column, ext: 24 column, or user specified columns")
+parser.add_option("-a", "--allqueries", action="store_true", dest="allqueries", default=False, help="ouptut row for each query, including those with no hits")
+parser.add_option("-d", "--qdef", action="store_true", dest="qdef", default=False, help="use Iteration_query-def for qseqid")
+parser.add_option('-u', '--unmatched', dest='unmatched', default=None, help='unmatched queries file path',  metavar="FILE")
+parser.add_option('-m', '--maxhits', dest='maxhits', type="int", default=sys.maxint, help='maximum number of HITs for output for a Query')
+parser.add_option('-p', '--maxhsps', dest='maxhsps', type="int", default=sys.maxint, help='maximum number of HSPs for output for a Hit')
+(options, args) = parser.parse_args()
 
-if out_fmt == "std":
+colnames = 'qseqid,sseqid,pident,length,mismatch,gapopen,qstart,qend,sstart,send,evalue,bitscore,sallseqid,score,nident,positive,gaps,ppos,qframe,sframe,qseq,sseq,qlen,slen,hitdef'.split(',')
+
+if len(args) < 1:
+    parser.error("no BLASTXML input files")
+
+if options.columns == "std":
+    out_fmt = 'std'
     extended = False
-elif out_fmt == "x22":
+    columns = colnames[0:12]
+elif options.columns == "x22":
     stop_err("Format argument x22 has been replaced with ext (extended 24 columns)")
-elif out_fmt == "ext":
+elif options.columns == "ext":
+    out_fmt = 'ext'
     extended = True
-else:
-    stop_err("Format argument should be std (12 column) or ext (extended 24 columns)")
+    columns = colnames[0:24]
+else: 
+    out_fmt = 'cols'
+    extended = True
+    sel_cols = options.columns.split(',')
+    columns = []
+    for col in sel_cols:
+        if col in colnames:
+            columns.append(col)
 
-
-# get an iterable
-try: 
-    context = ElementTree.iterparse(in_file, events=("start", "end"))
-except:
-    stop_err("Invalid data format.")
-# turn it into an iterator
-context = iter(context)
-# get the root element
-try:
-    event, root = context.next()
-except:
-    stop_err( "Invalid data format." )
-
+unhitfile = open(options.unmatched,'w') if options.unmatched else None
 
 re_default_query_id = re.compile("^Query_\d+$")
 assert re_default_query_id.match("Query_101")
@@ -119,11 +127,13 @@ assert re_default_subject_id.match("Subject_1")
 assert not re_default_subject_id.match("Subject_")
 assert not re_default_subject_id.match("Subject_12a")
 assert not re_default_subject_id.match("TheSubject_1")
+    
+header = "#%s\n" % "\t".join(columns)
+outfile = open(options.output, 'w') if options.output else sys.stdout
+outfile.write(header)
 
-
-outfile = open(out_file, 'w')
-blast_program = None
-for event, elem in context:
+def handle_event(event, elem):
+    blast_program = None
     if event == "end" and elem.tag == "BlastOutput_program":
         blast_program = elem.text
     # for every <Iteration> tag
@@ -140,13 +150,29 @@ for event, elem in context:
         # <Iteration_query-len>516</Iteration_query-len>
         # <Iteration_hits>...
         qseqid = elem.findtext("Iteration_query-ID")
-        if re_default_query_id.match(qseqid):
+        if options.qdef or re_default_query_id.match(qseqid):
             #Place holder ID, take the first word of the query definition
             qseqid = elem.findtext("Iteration_query-def").split(None,1)[0]
         qlen = int(elem.findtext("Iteration_query-len"))
-                                        
+        # If no hits in this iteration
+        if not elem.find("Iteration_hits/Hit"):
+            if unhitfile:
+                unhitfile.write("%s\n" % qseqid)
+            if options.allqueries:
+                if columns and len(columns) > 0:
+                    v = []
+                    for name in columns:
+                        if name == 'qseqid':
+                            v.append(qseqid)
+                        elif name == 'qlen':
+                            v.append(str(qlen))
+                        else:
+                            v.append('')
+                    outfile.write("\t".join(v) + "\n")
         # for every <Hit> within <Iteration>
-        for hit in elem.findall("Iteration_hits/Hit"):
+        for hitn, hit in enumerate(elem.findall("Iteration_hits/Hit")):
+            if hitn >= options.maxhits:
+                break
             #Expecting either this,
             # <Hit_id>gi|3024260|sp|P56514.1|OPSD_BUFBU</Hit_id>
             # <Hit_def>RecName: Full=Rhodopsin</Hit_def>
@@ -158,6 +184,7 @@ for event, elem in context:
             #
             #apparently depending on the parse_deflines switch
             sseqid = hit.findtext("Hit_id").split(None,1)[0]
+            hdef = hit.findtext("Hit_def")
             hit_def = sseqid + " " + hit.findtext("Hit_def")
             if re_default_subject_id.match(sseqid) \
             and sseqid == hit.findtext("Hit_accession"):
@@ -165,7 +192,9 @@ for event, elem in context:
                 hit_def = hit.findtext("Hit_def")
                 sseqid = hit_def.split(None,1)[0]
             # for every <Hsp> within <Hit>
-            for hsp in hit.findall("Hit_hsps/Hsp"):
+            for hspn,hsp in enumerate(hit.findall("Hit_hsps/Hsp")):
+                if hspn >= options.maxhsps:
+                    break
                 nident = hsp.findtext("Hsp_identity")
                 length = hsp.findtext("Hsp_align-len")
                 pident = "%0.2f" % (100*float(nident)/float(length))
@@ -253,9 +282,37 @@ for event, elem in context:
                                    str(qlen),
                                    str(slen),
                                    ])
+                if out_fmt == 'cols':
+                    values.append(hdef)
+                    if columns and len(columns) > 0:
+                        v = []
+                        for name in columns:
+                            v.append(values[colnames.index(name)])
+                        values = v
                 #print "\t".join(values) 
                 outfile.write("\t".join(values) + "\n")
         # prevents ElementTree from growing large datastructure
         root.clear()
         elem.clear()
-outfile.close()
+
+
+for in_file in args:
+    # get an iterable
+    try: 
+        context = ElementTree.iterparse(in_file, events=("start", "end"))
+    except:
+        stop_err("Invalid data format.")
+    # turn it into an iterator
+    context = iter(context)
+    # get the root element
+    try:
+        event, root = context.next()
+    except:
+        stop_err( "Invalid data format." )
+    for event, elem in context:
+        handle_event(event, elem)
+
+if unhitfile:
+    unhitfile.close()
+if options.output:
+    outfile.close()
