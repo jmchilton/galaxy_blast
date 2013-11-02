@@ -75,9 +75,9 @@ before_install:
  - tar -zxvf ncbi-blast-2.2.27+-x64-linux.tar.gz | tail
  - export PATH="${TRAVIS_BUILD_DIR}/ncbi-blast-2.2.27+/bin:$PATH"
  - echo "Fetching Galaxy..."
- - wget https://codeload.github.com/jmchilton/galaxy-central/tar.gz/master
- - tar -zxvf master | tail
- - cd galaxy-central-master
+ - wget https://codeload.github.com/jmchilton/galaxy-central/tar.gz/tool_test
+ - tar -zxvf tool_test | tail
+ - cd galaxy-central-tool_test
 
 # Configuring tools within Galaxy
 # ===============================
