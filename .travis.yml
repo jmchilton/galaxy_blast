@@ -78,6 +78,8 @@ before_install:
  - wget https://codeload.github.com/jmchilton/galaxy-central/tar.gz/tool_test
  - tar -zxvf tool_test | tail
  - cd galaxy-central-tool_test
+ - sudo apt-get install python-pip
+ - sudo pip install requests  # Needed for twill-less tool tests for now.
 
 # Configuring tools within Galaxy
 # ===============================
