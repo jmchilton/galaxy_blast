@@ -111,14 +111,14 @@ $mask_string
             <param name="parse_seqids" value="" />
             <param name="hash_index" value="true" />
             <output name="out_file" file="empty_file.dat" ftype="blastdbp">
-                <extra_files type="file" value="four_human_proteins.fasta.phr" name="blastdb.phr" />
-                <extra_files type="file" value="four_human_proteins.fasta.pin" name="blastdb.pin" lines_diff="2" />
-                <extra_files type="file" value="four_human_proteins.fasta.psq" name="blastdb.psq" />
-                <extra_files type="file" value="four_human_proteins.fasta.pog" name="blastdb.pog" />
                 <extra_files type="file" value="four_human_proteins.fasta.phd" name="blastdb.phd" />
                 <extra_files type="file" value="four_human_proteins.fasta.phi" name="blastdb.phi" />
+                <extra_files type="file" value="four_human_proteins.fasta.phr" name="blastdb.phr" />
+                <extra_files type="file" value="four_human_proteins.fasta.pin" name="blastdb.pin" lines_diff="2" />
+                <extra_files type="file" value="four_human_proteins.fasta.pog" name="blastdb.pog" />
                 <extra_files type="file" value="four_human_proteins.fasta.psd" name="blastdb.psd" />
                 <extra_files type="file" value="four_human_proteins.fasta.psi" name="blastdb.psi" />
+                <extra_files type="file" value="four_human_proteins.fasta.psq" name="blastdb.psq" />
             </output>
         </test>
     </tests>
