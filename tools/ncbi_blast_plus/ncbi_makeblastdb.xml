@@ -122,7 +122,7 @@ $mask_string
             <param name="title" value="Just 4 human proteins" />
             <param name="parse_seqids" value="" />
             <param name="hash_index" value="true" />
-            <output name="out_file" file="empty_file.dat" ftype="blastdbp">
+            <output name="out_file" file="four_human_proteins.fasta.log" ftype="blastdbp" lines_diff="6">
                 <extra_files type="file" value="four_human_proteins.fasta.phd" name="blastdb.phd" />
                 <extra_files type="file" value="four_human_proteins.fasta.phi" name="blastdb.phi" />
                 <extra_files type="file" value="four_human_proteins.fasta.phr" name="blastdb.phr" />
