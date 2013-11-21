@@ -6,6 +6,15 @@
     </macros>
     <expand macro="requirements" />
     <command>
+## Record a content hint in the dummy primary file (see blast_datatype classes):
+#if str($dbtype) == "prot"
+echo "This is a protein BLAST Database" &gt; "$outfile" &amp;&amp;
+#else if str($dbtype) == "nucl"
+echo "This is a nucleotide BLAST Database" &gt; "$outfile" &amp;&amp;
+#else
+echo "ERROR: Undefined BLAST database type: $dbtype" &gt; "$outfile" &amp;&amp;
+echo "ERROR: Undefined BLAST database type: $dbtype" 1&gt;&amp;2 &amp;&amp; false &amp;&amp;
+#end if
 makeblastdb -out "${os.path.join($outfile.extra_files_path,'blastdb')}"
 $parse_seqids
 $hash_index
@@ -43,6 +52,9 @@ $mask_string
 ## #else if $tax.select == 'map':
 ## -taxid_map $tax.map
 ## #end if
+## --------------------------------------------------------------------
+## Capture the stdout log information to the primary file (plain text):
+&gt;&gt; "$outfile"
     </command>
     <expand macro="stdio" />
     <inputs>
